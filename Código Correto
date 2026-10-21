@@ -1,0 +1,99 @@
+kubectl create configmap pagina-aula6 \
+  --from-literal=index.html='<h1>Aula 6 - Computacao em Nuvem</h1><p>Pagina carregada por ConfigMap</p>' \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+cat <<'EOF' > pod-config.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-config
+spec:
+  containers:
+    - name: nginx
+      image: nginx:alpine
+      ports:
+        - containerPort: 80
+      volumeMounts:
+        - name: pagina
+          mountPath: /usr/share/nginx/html
+  volumes:
+    - name: pagina
+      configMap:
+        name: pagina-aula6
+EOF
+
+kubectl apply -f pod-config.yaml
+kubectl wait --for=condition=Ready pod/web-config --timeout=120s
+kubectl exec web-config -- wget -qO- http://localhost
+cat <<'EOF' > pv-aula6.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-aula6
+spec:
+  capacity:
+    storage: 50Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /mnt/data/pv-aula6
+    type: DirectoryOrCreate
+EOF
+
+cat <<'EOF' > pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-aula6
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Mi
+EOF
+
+kubectl apply -f pv-aula6.yaml
+kubectl apply -f pvc.yaml
+kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/pvc-aula6 --timeout=60s
+kubectl get pv,pvc
+cat <<'EOF' > pod-dados.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-dados
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: node01
+  containers:
+    - name: nginx
+      image: nginx:alpine
+      command:
+        - sh
+        - -c
+        - sleep infinity
+      volumeMounts:
+        - name: armazenamento
+          mountPath: /dados
+  volumes:
+    - name: armazenamento
+      persistentVolumeClaim:
+        claimName: pvc-aula6
+EOF
+
+kubectl apply -f pod-dados.yaml
+kubectl wait --for=condition=Ready pod/pod-dados --timeout=120s
+
+kubectl exec pod-dados -- sh -c 'echo "Dado persistente da Aula 6" > /dados/mensagem.txt'
+kubectl exec pod-dados -- cat /dados/mensagem.txt
+kubectl delete pod pod-dados --wait=true
+
+sed 's/name: pod-dados/name: pod-dados-2/' pod-dados.yaml > pod-dados-2.yaml
+
+kubectl apply -f pod-dados-2.yaml
+kubectl wait --for=condition=Ready pod/pod-dados-2 --timeout=120s
+
+kubectl exec pod-dados-2 -- cat /dados/mensagem.txt
