@@ -1,0 +1,13 @@
+kubectl exec pod-dados-2 -- sh -c 'echo "Grupo: NOME 1 e NOME 2" > /dados/grupo.txt'
+
+kubectl delete pod pod-dados-2
+
+sed 's/name: pod-dados/name: pod-dados-3/' pod-dados.yaml > pod-dados-3.yaml
+
+kubectl apply -f pod-dados-3.yaml
+
+kubectl exec pod-dados-3 -- ls -l /dados
+kubectl exec pod-dados-3 -- cat /dados/mensagem.txt
+kubectl exec pod-dados-3 -- cat /dados/grupo.txt
+
+
