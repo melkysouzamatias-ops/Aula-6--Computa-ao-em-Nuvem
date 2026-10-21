@@ -1,0 +1,73 @@
+root@controlplane:~$ kubectl get nodes
+NAME           STATUS   ROLES           AGE   VERSION
+controlplane   Ready    control-plane   16d   v1.37.1
+node01         Ready    <none>          16d   v1.37.1
+root@controlplane:~$ kubectl create configmap pagina-aula6 \
+> --from-literal=index.html="<h1>Aula 6 - Computacao em Nuvem</h1><p>Pagina carregada por ConfigMap</p>"
+configmap/pagina-aula6 created
+root@controlplane:~$ kubectl get configmap pagina-aula6
+NAME           DATA   AGE
+pagina-aula6   1      24s
+root@controlplane:~$ cat << 'EOF' > pod-config.yaml
+> apiVersion: v1
+> kind: Pod
+> metadata:
+> name: web-config
+> spec:
+> containers:
+> - name: nginx
+> image: nginx:alpine
+> volumeMounts:
+> - name: pagina
+> mountPath: /usr/share/nginx/html
+> volumes:
+> - name: pagina
+> configMap:
+> name: pagina-aula6
+> EOF
+root@controlplane:~$ kubectl apply -f pod-config.yaml
+error: error when retrieving current configuration of:
+Resource: "/v1, Resource=pods", GroupVersionKind: "/v1, Kind=Pod"
+Name: "", Namespace: "default"
+from server for: "pod-config.yaml": resource name may not be empty
+root@controlplane:~$ kubectl get pods
+No resources found in default namespace.
+root@controlplane:~$ kubectl exec web-config -- wget -q0- http://localhost
+Error from server (NotFound): pods "web-config" not found
+root@controlplane:~$ cat <<'EOF' > pvc.yaml
+> apiVersion: v1
+> kind: PersistentVolumeClaim
+> metadata:
+> name: pvc-aula6
+> spec:
+> storageClassName: manual
+> accessModes:
+> - ReadWriteOnce:
+> resources:
+> requests:
+> storage: 50Mi
+> EOF
+root@controlplane:~$ kubectl apply -f pvc.yaml
+error: error when retrieving current configuration of:
+Resource: "/v1, Resource=persistentvolumeclaims", GroupVersionKind: "/v1, Kind=PersistentVolumeClaim"
+Name: "", Namespace: "default"
+from server for: "pvc.yaml": resource name may not be empty
+root@controlplane:~$ kubectl get pv,pvc
+No resources found
+root@controlplane:~$ kubectl exec pod-dados -- sh -c 'echo "Dado persistente da Aula 6" > /dados/mensagem.txt'
+Error from server (NotFound): pods "pod-dados" not found
+root@controlplane:~$ kubectl exec pod-dados -- cat /dados/mensagem.txt
+Error from server (NotFound): pods "pod-dados" not found
+root@controlplane:~$ kubectl delete pod pod-dados
+Error from server (NotFound): pods "pod-dados" not found
+root@controlplane:~$ kubectl get pods
+No resources found in default namespace.
+root@controlplane:~$ sed 's/name: pod-dados/name: pod-dados-2/'pod-dados.yaml > pod-dados-2.yaml
+sed: -e expression #1, char 38: unknown option to `s'
+root@controlplane:~$ kubectl apply -f pod-dados-2.yaml
+error: no objects passed to apply
+root@controlplane:~$ kubectl get pod pod-dados-2
+Error from server (NotFound): pods "pod-dados-2" not found
+root@controlplane:~$ kubectl exec pod-dados-2 -- cat /dados/mensagem.txt
+Error from server (NotFound): pods "pod-dados-2" not found
+root@controlplane:~$ 
