@@ -1,7 +1,5 @@
 # Aula-6--Computa-ao-em-Nuvem
 
-# Aula 6 — Kubernetes e Persistência de Dados
-
 ## 1. O que fizemos na aula?
 
 Nesta aula, criamos uma página web com Nginx usando um ConfigMap e aprendemos a armazenar arquivos no Kubernetes utilizando PV e PVC.
